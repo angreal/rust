@@ -1,0 +1,30 @@
+author_name = "Dylan Storey"
+author_email = "contact@colliery.io"
+project_name = "My Rust Project"
+project_slug = '{{ project_name | lower | replace(from=" ", to="-") }}'
+project_description = "A short description of the project"
+license = "MIT"
+github_org = "colliery-io"
+rust_version = "1.93"
+include_ui = "false"
+include_python_bindings = "false"
+initial_version = "0.0.1"
+
+[prompt]
+author_name = "Your full name for package metadata"
+author_email = "Your email address for package metadata"
+project_name = "The human-readable name of your project"
+project_description = "A brief one-line description of what your project does"
+license = "License type (MIT, Apache-2.0, MIT OR Apache-2.0)"
+github_org = "GitHub organization or username for repository URLs"
+rust_version = "Minimum supported Rust version (e.g., 1.85)"
+include_ui = "Include Tauri v2 + Vue 3 desktop UI? (true/false)"
+include_python_bindings = "Include PyO3/Maturin Python bindings crate? (true/false)"
+initial_version = "Starting version for all crates (e.g., 0.0.1)"
+
+[validation]
+author_email.regex_match = "^[^@]+@[^@]+\\.[^@]+$"
+project_slug.regex_match = "^[a-z0-9-]+$"
+include_ui.regex_match = "^(true|false)$"
+include_python_bindings.regex_match = "^(true|false)$"
+initial_version.regex_match = "^\\d+\\.\\d+\\.\\d+$"

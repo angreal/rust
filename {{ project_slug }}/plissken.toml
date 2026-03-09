@@ -1,0 +1,11 @@
+[project]
+name = "{{ project_slug }}"
+version_from = "cargo"
+
+[output]
+format = "markdown"
+path = "docs/api"
+template = "mkdocs-material"
+
+[rust]
+crates = ["crates/{{ project_slug }}-core", "crates/{{ project_slug }}-cli"]

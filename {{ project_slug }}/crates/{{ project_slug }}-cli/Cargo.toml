@@ -1,0 +1,21 @@
+[package]
+name = "{{ project_slug }}-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "CLI for {{ project_name }}"
+
+[[bin]]
+name = "{{ project_slug }}"
+path = "src/main.rs"
+
+[dependencies]
+{{ project_slug }}-core = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

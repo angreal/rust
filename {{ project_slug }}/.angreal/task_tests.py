@@ -15,65 +15,119 @@ def get_crates():
             if os.path.isfile(os.path.join(crates_dir, d, 'Cargo.toml'))]
 
 
+def _run(cmd):
+    """Run a command and exit with its return code."""
+    result = subprocess.run(cmd, cwd=cwd)
+    raise SystemExit(result.returncode)
+
+
+def _add_crate_filter(cmd, crate_name, filter_str):
+    """Add crate and filter arguments to a cargo command."""
+    if crate_name:
+        cmd.extend(["-p", crate_name])
+    cmd.extend(["--", "--test-threads=1"])
+    if filter_str:
+        cmd.append(filter_str)
+    return cmd
+
+
 @test()
-@angreal.command(name="unit", about="run unit tests")
+@angreal.command(name="unit", about="run unit tests (cargo test --lib)")
 @angreal.argument(name="crate_name", required=False, help="specific crate to test (default: all)")
 @angreal.argument(name="filter", long="filter", short="f", required=False, help="filter for specific tests")
 def unit_tests(crate_name="", filter=""):
     cmd = ["cargo", "test", "--lib", "-v"]
-    if crate_name:
-        cmd.extend(["-p", crate_name])
-    cmd.extend(["--", "--test-threads=1"])
-    if filter:
-        cmd.append(filter)
-    result = subprocess.run(cmd, cwd=cwd)
-    raise SystemExit(result.returncode)
+    _run(_add_crate_filter(cmd, crate_name, filter))
 
 
 @test()
-@angreal.command(name="integration", about="run integration tests")
+@angreal.command(name="integration", about="run integration tests (tests/integration.rs)")
 @angreal.argument(name="crate_name", required=False, help="specific crate to test (default: all)")
 @angreal.argument(name="filter", long="filter", short="f", required=False, help="filter for specific tests")
 def integration_tests(crate_name="", filter=""):
     cmd = ["cargo", "test", "--test", "integration"]
-    if crate_name:
-        cmd.extend(["-p", crate_name])
-    cmd.extend(["--", "--test-threads=1", "--nocapture"])
-    if filter:
-        cmd.append(filter)
-    result = subprocess.run(cmd, cwd=cwd)
-    raise SystemExit(result.returncode)
+    _run(_add_crate_filter(cmd, crate_name, filter))
 
 
 @test()
-@angreal.command(name="all", about="run all tests (unit and integration)")
+@angreal.command(name="functional", about="run functional tests (tests/functional.rs)")
 @angreal.argument(name="crate_name", required=False, help="specific crate to test (default: all)")
-def all_tests(crate_name=""):
+@angreal.argument(name="filter", long="filter", short="f", required=False, help="filter for specific tests")
+@angreal.argument(
+    name="ignored",
+    long="ignored",
+    takes_value=False,
+    help="include #[ignore] tests (e.g. tests needing external services)",
+)
+def functional_tests(crate_name="", filter="", ignored=False):
+    cmd = ["cargo", "test", "--test", "functional"]
+    if crate_name:
+        cmd.extend(["-p", crate_name])
+    cmd.extend(["--", "--test-threads=1"])
+    if ignored:
+        cmd.append("--ignored")
+    if filter:
+        cmd.append(filter)
+    _run(cmd)
+
+
+@test()
+@angreal.command(name="all", about="run all tests (unit, integration, and functional)")
+@angreal.argument(name="crate_name", required=False, help="specific crate to test (default: all)")
+@angreal.argument(
+    name="ignored",
+    long="ignored",
+    takes_value=False,
+    help="include #[ignore] tests",
+)
+def all_tests(crate_name="", ignored=False):
     cmd = ["cargo", "test", "-v"]
     if crate_name:
         cmd.extend(["-p", crate_name])
     cmd.extend(["--", "--test-threads=1"])
-    result = subprocess.run(cmd, cwd=cwd)
-    raise SystemExit(result.returncode)
+    if ignored:
+        cmd.append("--ignored")
+    _run(cmd)
 
 
 @test()
 @angreal.command(name="coverage", about="generate code coverage report")
-@angreal.argument(name="open", long="open", short="o", takes_value=False, help="open HTML report in browser")
-def coverage(open=False):
+@angreal.argument(
+    name="type",
+    long="type",
+    short="t",
+    required=False,
+    help="test type to measure: unit, integration, functional, all (default: all)",
+)
+@angreal.argument(
+    name="open",
+    long="open",
+    short="o",
+    takes_value=False,
+    help="open HTML report in browser",
+)
+def coverage(type="all", open=False):
     import webbrowser
 
     output_dir = os.path.join(cwd, "coverage")
 
-    # Generate coverage
-    cmds = [
-        ["cargo", "llvm-cov", "--workspace", "--no-report", "--", "--test-threads=1"],
-        ["cargo", "llvm-cov", "report", "--workspace", "--html", "--output-dir", output_dir],
-        ["cargo", "llvm-cov", "report", "--workspace", "--lcov", "--output-path", os.path.join(output_dir, "lcov.info")],
-        ["cargo", "llvm-cov", "report", "--workspace"],
-    ]
+    # Build the test selection flags for cargo-llvm-cov
+    test_flags = []
+    if type == "unit":
+        test_flags = ["--lib"]
+    elif type == "integration":
+        test_flags = ["--test", "integration"]
+    elif type == "functional":
+        test_flags = ["--test", "functional"]
+    # "all" uses no flags (runs everything)
 
-    for cmd in cmds:
+    # Generate coverage
+    run_cmd = ["cargo", "llvm-cov", "--workspace", "--no-report"] + test_flags + ["--", "--test-threads=1"]
+    report_html = ["cargo", "llvm-cov", "report", "--workspace", "--html", "--output-dir", output_dir]
+    report_lcov = ["cargo", "llvm-cov", "report", "--workspace", "--lcov", "--output-path", os.path.join(output_dir, "lcov.info")]
+    report_text = ["cargo", "llvm-cov", "report", "--workspace"]
+
+    for cmd in [run_cmd, report_html, report_lcov, report_text]:
         result = subprocess.run(cmd, cwd=cwd)
         if result.returncode != 0:
             raise SystemExit(result.returncode)
